@@ -6,6 +6,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
+const http = require('http');
+const OptionsHandler = require('../lib/handlers/OptionsHandler');
 const Server = require('../lib/Server');
 const DataStore = require('../lib/stores/DataStore');
 const FileStore = require('../lib/stores/FileStore');
@@ -205,4 +207,45 @@ describe('FileStore', () => {
                     .should.be.fulfilledWith(fs.statSync(`${FILES_DIRECTORY}/${TEST_FILE_NAME}`));
         });
     });
+
+    describe('checksum extension', () => {
+        let res = null;
+        const STORE_PATH = '/files';
+        const file_store = new FileStore({ path: STORE_PATH });
+
+        let hasHeader = (res, header) => {
+            let key = Object.keys(header)[0];
+            return res._header.indexOf(`${key}: ${header[key]}`) > -1;
+        }        
+    
+        beforeEach((done) => {
+            const METHOD = 'OPTIONS';
+            res = new http.ServerResponse({ method: METHOD });
+            done();
+        });
+    
+        it('checksum exists in Tus-Extension header', (done) => {
+            let req = { headers: {} };
+            let handler = new OptionsHandler(file_store);
+            let headers = {
+                'Tus-Extension': 'creation,creation-defer-length,checksum',
+            };
+            handler.send(req, res);
+            assert.equal(hasHeader(res, headers), true);
+            done();
+        });
+    
+        it('Tus-Checksum-Algorithm header', (done) => {
+            let req = { headers: {} };
+            let handler = new OptionsHandler(file_store);
+            let headers = {
+                'Tus-Checksum-Algorithm': 'sha1',
+            };
+            handler.send(req, res);
+            assert.equal(hasHeader(res, headers), true);
+            done();
+        });
+    
+    });
+
 });
